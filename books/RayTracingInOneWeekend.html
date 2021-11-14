@@ -405,11 +405,15 @@ Now we can change our main to use this:
 
         std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
-        for (int j = image_height-1; j >= 0; --j) {
-            std::clog << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
+        // Scale factors to convert pixel location to the range [0,1].
+        double xscale = (image_width < 2)  ? 1.0 : (1.0 / (image_width - 1));
+        double yscale = (image_height < 2) ? 1.0 : (1.0 / (image_height - 1));
+
+        for (int py = 0; py < image_height; ++py) {
+            std::clog << "\rScanlines remaining: " << (image_height - py) << ' ' << std::flush;
+            for (int px = 0; px < image_width; ++px) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                color pixel_color(double(i)/(image_width-1), double(j)/(image_height-1), 0.25);
+                color pixel_color(xscale * px, yscale * py, 0.25);
                 write_color(std::cout, pixel_color);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
             }
