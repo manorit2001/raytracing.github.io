@@ -193,13 +193,13 @@ Our program outputs the image to the standard output stream (`std::cout`), so le
 instead write to the logging output stream (`std::clog`):
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        for (int j = image_height-1; j >= 0; --j) {
+        for (int py = 0; py < image_height; ++py) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            std::clog << "\rScanlines remaining: " << j << ' ' << std::flush;
+            std::clog << "\rScanlines remaining: " << (image_height - py) << ' ' << std::flush;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-            for (int i = 0; i < image_width; ++i) {
-                auto r = double(i) / (image_width-1);
-                auto g = double(j) / (image_height-1);
+            for (int px = 0; px < image_width; ++px) {
+                auto r = xscale * px;
+                auto g = yscale * py;
                 auto b = 0.25;
 
                 int ir = static_cast<int>(255.999 * r);
@@ -212,7 +212,7 @@ instead write to the logging output stream (`std::clog`):
 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [main-progress]: <kbd>[main.cc]</kbd> Main render loop with progress reporting]
 </div>
@@ -415,7 +415,7 @@ Now we can change our main to use this:
             }
         }
 
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [ppm-2]: <kbd>[main.cc]</kbd> Final code for the first PPM image]
@@ -564,7 +564,7 @@ for now because we’ll add antialiasing later):
             }
         }
 
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [main-blue-white-blend]: <kbd>[main.cc]</kbd> Rendering a blue-to-white gradient]
@@ -1270,7 +1270,7 @@ And the new main:
             }
         }
 
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [main-with-rtweekend-h]: <kbd>[main.cc]</kbd> The new main with hittables]
@@ -1610,7 +1610,7 @@ Main is also changed:
             }
         }
 
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [main-multi-sample]: <kbd>[main.cc]</kbd> Rendering with multi-sampled pixels]
@@ -1789,7 +1789,7 @@ depth, returning no light contribution at the maximum depth:
             }
         }
 
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [ray-color-depth]: <kbd>[main.cc]</kbd> ray_color() with depth limiting]
@@ -2387,7 +2387,7 @@ Now let’s add some metal spheres to our scene:
             }
         }
 
-        std::clog << "\nDone.\n";
+        std::clog << "\rDone.                        \n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [scene-with-metal]: <kbd>[main.cc]</kbd> Scene with metal spheres]
@@ -2846,7 +2846,7 @@ Naturally, we'll name this the `scene` class.
                 }
             }
 
-            std::clog << "\nDone.\n";
+            std::clog << "\rDone.                        \n";
         }
 
       public:
