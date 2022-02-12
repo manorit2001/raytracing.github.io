@@ -482,11 +482,11 @@ The function $\mathbf{P}(t)$ in more verbose code form I call `ray::at(t)`:
 Sending Rays Into the Scene
 ----------------------------
 Now we are ready to turn the corner and make a ray tracer. At the core, the ray tracer sends rays
-through pixels and computes the color seen in the direction of those rays. The involved steps are
-(1) calculate the ray from the eye to the pixel, (2) determine which objects the ray intersects, and
-(3) compute a color for that intersection point. When first developing a ray tracer, I always do a
-simple camera for getting the code up and running. I also make a simple `ray_color(ray)` function
-that returns the color of the background (a simple gradient).
+through pixels and computes the color seen in the direction of those rays. The steps involved are
+(1) calculate the ray from the projection point to the pixel, (2) determine which objects the ray
+intersects, and (3) compute a color for that intersection point. When first developing a ray tracer,
+I always do a simple camera for getting the code up and running. I also make a simple
+`ray_color(ray)` function that returns the color of the background (a simple gradient).
 
 I’ve often gotten into trouble using square images for debugging because I transpose $x$ and $y$ too
 often, so I’ll use a non-square image. For now we'll use a 16:9 aspect ratio, since that's so
@@ -499,42 +499,47 @@ same as our rendered image. We'll just pick a viewport two units in height. We'l
 distance between the projection plane and the projection point to be one unit. This is referred to
 as the “focal length”, not to be confused with “focus distance”, which we'll present later.
 
-I’ll put the “eye” (or camera center if you think of a camera) at $(0,0,0)$. I will have the y-axis
-go up, and the x-axis to the right. In order to respect the convention of a right handed coordinate
-system, into the screen is the negative z-axis. I will traverse the screen from the upper left hand
-corner, and use two offset vectors along the screen sides to move the ray endpoint across the
-screen. Note that I do not make the ray direction a unit length vector because I think not doing
-that makes for simpler and slightly faster code.
-
   ![Figure [cam-geom]: Camera geometry](../images/fig-1.03-cam-geom.jpg)
 
+I’ll put the projection point (or focal point) at $(0,0,0)$. I will have the y-axis go up, and the
+x-axis to the right. In order to respect the convention of a right handed coordinate system, into
+the screen is the negative z-axis.
+
+Note that computer graphics images typically have the convention of the image origin at the upper
+left corner, with X going to the right, and Y going down. (This is also known as “scanline” order,
+from back in the days of cathode ray tubes, which scanned an electron beam to excite screen
+phosphors.) It's generally easiest to maintain Y-up in your three-dimensional scenes, and Y-down in
+image space.
+
+Since we'll traverse the screen from the upper left hand corner, we use two step vectors along the
+screen sides to move the ray endpoint across the viewport: `step_x` and `step_y`.
+
+  ![Figure [pixel-grid]: Image pixel grid](../images/fig-1.03b-pixel-grid.jpg)
+
+I do not make the scene ray a unit length ray, because I think not doing that makes for simpler and
+slightly faster code.
+
 <div class='together'>
-Below in code, the ray `r` goes to approximately the pixel centers (I won’t worry about exactness
-for now because we’ll add antialiasing later):
+Below in code, the ray `r` goes through the pixel centers. I won’t worry about exactness for now
+because we’ll add antialiasing later.
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     #include "color.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
     #include "ray.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     #include "vec3.h"
 
     #include <iostream>
 
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
     color ray_color(const ray& r) {
         vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
         return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
     }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
     int main() {
 
         // Image
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         const auto aspect_ratio = 16.0 / 9.0;
         const int image_width = 400;
         const int image_height = static_cast<int>(image_width / aspect_ratio);
@@ -544,27 +549,27 @@ for now because we’ll add antialiasing later):
         auto viewport_height = 2.0;
         auto viewport_width = aspect_ratio * viewport_height;
         auto focal_length = 1.0;
+        auto focal_point = point3(0,0,0);
 
-        auto origin = point3(0, 0, 0);
-        auto horizontal = vec3(viewport_width, 0, 0);
-        auto vertical = vec3(0, viewport_height, 0);
-        auto lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+        auto viewport_origin = point3(-viewport_width / 2, viewport_height / 2, -focal_length);
+        const int step_count_x = (image_width  < 2) ? 1 : image_width  - 1;
+        const int step_count_y = (image_height < 2) ? 1 : image_height - 1;
+        const auto step_x = vec3(static_cast<double>(viewport_width) / step_count_x, 0, 0);
+        const auto step_y = vec3(0, static_cast<double>(-viewport_height) / step_count_y, 0);
 
         // Render
 
         std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
 
-        for (int j = image_height-1; j >= 0; --j) {
-            std::clog << "\rScanlines remaining: " << j << ' ' << std::flush;
+        for (int j = 0; j < image_height; ++j) {
+            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+            auto v = j * step_y;
             for (int i = 0; i < image_width; ++i) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                auto u = double(i) / (image_width-1);
-                auto v = double(j) / (image_height-1);
-                ray r(origin, lower_left_corner + u*horizontal + v*vertical - origin);
+                auto u = i * step_x;
+                auto pixel_loc = viewport_origin + u + v;
+                ray r(focal_point, pixel_loc - focal_point);
                 color pixel_color = ray_color(r);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                write_color(std::cout, pixel_color);
+                write_color(std::cout, pixel_color, 1);
             }
         }
 
@@ -1224,9 +1229,7 @@ And the new main:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         vec3 unit_direction = unit_vector(r.direction());
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         auto t = 0.5*(unit_direction.y() + 1.0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
     }
 
@@ -1238,9 +1241,10 @@ And the new main:
         const int image_width = 400;
         const int image_height = static_cast<int>(image_width / aspect_ratio);
 
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
+
         // World
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         hittable_list world;
         world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
         world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
@@ -1251,22 +1255,25 @@ And the new main:
         auto viewport_height = 2.0;
         auto viewport_width = aspect_ratio * viewport_height;
         auto focal_length = 1.0;
+        auto focal_point = point3(0,0,0);
 
-        auto origin = point3(0, 0, 0);
-        auto horizontal = vec3(viewport_width, 0, 0);
-        auto vertical = vec3(0, viewport_height, 0);
-        auto lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+        auto viewport_origin = point3(-viewport_width / 2, viewport_height / 2, -focal_length);
+        const int step_count_x = (image_width  < 2) ? 1 : image_width  - 1;
+        const int step_count_y = (image_height < 2) ? 1 : image_height - 1;
+        const auto step_x = vec3(static_cast<double>(viewport_width) / step_count_x, 0, 0);
+        const auto step_y = vec3(0, static_cast<double>(-viewport_height) / step_count_y, 0);
 
         // Render
 
-        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
 
-        for (int j = image_height-1; j >= 0; --j) {
-            std::clog << "\rScanlines remaining: " << j << ' ' << std::flush;
+        for (int j = 0; j < image_height; ++j) {
+            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+            auto v = j * step_y;
             for (int i = 0; i < image_width; ++i) {
-                auto u = double(i) / (image_width-1);
-                auto v = double(j) / (image_height-1);
-                ray r(origin, lower_left_corner + u*horizontal + v*vertical);
+                auto u = i * step_x;
+                auto pixel_loc = viewport_origin + u + v;
+                ray r(focal_point, pixel_loc - focal_point);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
                 color pixel_color = ray_color(r, world);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
