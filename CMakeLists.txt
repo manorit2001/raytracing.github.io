@@ -80,4 +80,8 @@ add_executable(pi                src/TheRestOfYourLife/pi.cc                ${CO
 add_executable(sphere_importance src/TheRestOfYourLife/sphere_importance.cc ${COMMON_ALL})
 add_executable(sphere_plot       src/TheRestOfYourLife/sphere_plot.cc       ${COMMON_ALL})
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(inOneWeekend PRIVATE Threads::Threads)
+
 include_directories(src/common)
